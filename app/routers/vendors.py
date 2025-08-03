@@ -158,3 +158,230 @@ async def update_vendor(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to update vendor: {str(e)}"
         )
+
+@router.patch("/{vendor_id}/status")
+async def toggle_vendor_status(
+    vendor_id: str,
+    current_user: UserResponse = Depends(require_role(["master", "admin"]))
+):
+    """Toggle vendor active status"""
+    supabase = get_supabase_client()
+    
+    # Get current vendor
+    vendor_response = supabase.table("vendors").select("*").eq("id", vendor_id).execute()
+    if not vendor_response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vendor not found"
+        )
+    
+    vendor = vendor_response.data[0]
+    new_status = not vendor["is_active"]
+    
+    try:
+        response = supabase.table("vendors").update({"is_active": new_status}).eq("id", vendor_id).execute()
+        if not response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Vendor not found"
+            )
+        
+        updated_vendor = response.data[0]
+        return VendorResponse(
+            id=updated_vendor["id"],
+            name=updated_vendor["name"],
+            type=updated_vendor["type"],
+            community_id=updated_vendor["community_id"],
+            admin_id=updated_vendor.get("admin_id"),
+            description=updated_vendor.get("description"),
+            operating_hours=updated_vendor.get("operating_hours"),
+            is_active=updated_vendor["is_active"],
+            created_at=updated_vendor["created_at"],
+            updated_at=updated_vendor["updated_at"]
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to update vendor status: {str(e)}"
+        )
+
+@router.get("/stats")
+async def get_vendor_stats(
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Get vendor statistics"""
+    supabase = get_supabase_client()
+    
+    try:
+        # Get vendors with basic stats
+        vendors_response = supabase.table("vendors").select("*").execute()
+        vendor_stats = []
+        
+        for vendor in vendors_response.data:
+            # Get order count and revenue for this vendor
+            orders_response = supabase.table("orders").select("*").eq("vendor_id", vendor["id"]).execute()
+            
+            total_orders = len(orders_response.data)
+            total_revenue = sum([order.get("total_amount", 0) for order in orders_response.data if order.get("status") == "completed"])
+            
+            # Calculate average rating (placeholder - would need ratings table)
+            rating = 4.5  # Default rating
+            
+            vendor_stats.append({
+                "vendorId": vendor["id"],
+                "vendorName": vendor["name"],
+                "vendorType": vendor["type"],
+                "orderCount": total_orders,
+                "revenue": total_revenue,
+                "rating": rating,
+                "isActive": vendor["is_active"]
+            })
+        
+        return vendor_stats
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch vendor stats: {str(e)}"
+        )
+
+@router.get("/community/{community_id}")
+async def get_vendors_by_community(
+    community_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Get all vendors in a specific community"""
+    supabase = get_supabase_client()
+    
+    try:
+        response = supabase.table("vendors").select("*").eq("community_id", community_id).execute()
+        
+        vendors = []
+        for vendor_data in response.data:
+            # Get community name
+            community_response = supabase.table("communities").select("name").eq("id", community_id).execute()
+            community_name = community_response.data[0]["name"] if community_response.data else "Unknown"
+            
+            # Transform to match frontend interface
+            vendors.append({
+                "id": vendor_data["id"],
+                "name": vendor_data["name"],
+                "type": vendor_data["type"],
+                "email": vendor_data.get("email", ""),
+                "phone": vendor_data.get("phone", ""),
+                "address": vendor_data.get("address", ""),
+                "community_id": vendor_data["community_id"],
+                "community_name": community_name,
+                "description": vendor_data.get("description", ""),
+                "is_active": vendor_data["is_active"],
+                "rating": 4.5,  # Default rating
+                "total_orders": 0,  # Would calculate from orders
+                "monthly_revenue": 0,  # Would calculate from orders
+                "created_at": vendor_data["created_at"],
+                "updated_at": vendor_data["updated_at"],
+                "last_active": vendor_data["updated_at"]
+            })
+        
+        return vendors
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch vendors by community: {str(e)}"
+        )
+
+@router.get("/type/{vendor_type}")
+async def get_vendors_by_type(
+    vendor_type: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Get all vendors of a specific type"""
+    supabase = get_supabase_client()
+    
+    try:
+        response = supabase.table("vendors").select("*").eq("type", vendor_type).execute()
+        
+        vendors = []
+        for vendor_data in response.data:
+            # Get community name
+            community_response = supabase.table("communities").select("name").eq("id", vendor_data["community_id"]).execute()
+            community_name = community_response.data[0]["name"] if community_response.data else "Unknown"
+            
+            vendors.append({
+                "id": vendor_data["id"],
+                "name": vendor_data["name"],
+                "type": vendor_data["type"],
+                "email": vendor_data.get("email", ""),
+                "phone": vendor_data.get("phone", ""),
+                "address": vendor_data.get("address", ""),
+                "community_id": vendor_data["community_id"],
+                "community_name": community_name,
+                "description": vendor_data.get("description", ""),
+                "is_active": vendor_data["is_active"],
+                "rating": 4.5,
+                "total_orders": 0,
+                "monthly_revenue": 0,
+                "created_at": vendor_data["created_at"],
+                "updated_at": vendor_data["updated_at"],
+                "last_active": vendor_data["updated_at"]
+            })
+        
+        return vendors
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch vendors by type: {str(e)}"
+        )
+
+@router.get("/search")
+async def search_vendors(
+    q: str,
+    vendor_type: str = None,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Search vendors by name, with optional type filter"""
+    supabase = get_supabase_client()
+    
+    try:
+        # Build query based on search and filters
+        query = supabase.table("vendors").select("*")
+        
+        if vendor_type:
+            query = query.eq("type", vendor_type)
+        
+        # Supabase doesn't have ILIKE, so we'll filter in Python
+        response = query.execute()
+        
+        vendors = []
+        for vendor_data in response.data:
+            # Filter by search term
+            if (q.lower() in vendor_data["name"].lower() or 
+                q.lower() in vendor_data.get("description", "").lower()):
+                
+                # Get community name
+                community_response = supabase.table("communities").select("name").eq("id", vendor_data["community_id"]).execute()
+                community_name = community_response.data[0]["name"] if community_response.data else "Unknown"
+                
+                vendors.append({
+                    "id": vendor_data["id"],
+                    "name": vendor_data["name"],
+                    "type": vendor_data["type"],
+                    "email": vendor_data.get("email", ""),
+                    "phone": vendor_data.get("phone", ""),
+                    "address": vendor_data.get("address", ""),
+                    "community_id": vendor_data["community_id"],
+                    "community_name": community_name,
+                    "description": vendor_data.get("description", ""),
+                    "is_active": vendor_data["is_active"],
+                    "rating": 4.5,
+                    "total_orders": 0,
+                    "monthly_revenue": 0,
+                    "created_at": vendor_data["created_at"],
+                    "updated_at": vendor_data["updated_at"],
+                    "last_active": vendor_data["updated_at"]
+                })
+        
+        return vendors
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to search vendors: {str(e)}"
+        )

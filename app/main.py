@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, orders, vendors, products, payments
+from app.routers import auth, orders, vendors, products, payments, communities, dashboard
 
 app = FastAPI(
     title="CommunityExpress API",
@@ -23,6 +23,8 @@ app.include_router(orders.router)
 app.include_router(vendors.router)
 app.include_router(products.router)
 app.include_router(payments.router)
+app.include_router(communities.router)
+app.include_router(dashboard.router)
 
 @app.get("/")
 async def root():
