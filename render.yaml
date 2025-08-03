@@ -5,12 +5,12 @@ services:
     plan: free
     region: oregon
     buildCommand: pip install -r requirements.txt
-    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: gunicorn app.main:app -c gunicorn.conf.py
     envVars:
       - key: SUPABASE_URL
         value: https://gdmfonqvadznfijudeuc.supabase.co
       - key: SUPABASE_KEY
-        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkbWZvbnF2YWR6bmZpanVkZXVjIiwicm9sZUI6ImFub24iLCJpYXQiOjE3NTQyMDAwMjUsImV4cCI6MjA2OTc3NjAyNX0.V7wHfnDY_OPblGKfHLb9T01eoK3bIsLPIBG0Qqw-KFI
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkbWZvbnF2YWR6bmZpanVkZXVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQyMDAwMjUsImV4cCI6MjA2OTc3NjAyNX0.V7wHfnDY_OPblGKfHLb9T01eoK3bIsLPIBG0Qqw-KFI
       - key: SECRET_KEY
         generateValue: true
       - key: ALGORITHM
