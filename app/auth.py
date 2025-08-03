@@ -4,6 +4,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from dateutil import parser
 from app.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 from app.database import get_supabase_client
 from app.models import UserResponse
@@ -24,6 +25,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
+    
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -34,7 +36,7 @@ def verify_token(token: str) -> Optional[str]:
         if user_id is None:
             return None
         return user_id
-    except JWTError:
+    except JWTError as e:
         return None
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> UserResponse:
@@ -55,6 +57,15 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             raise credentials_exception
         
         user_data = response.data[0]
+        
+        # Fix datetime parsing - handle microseconds properly
+        created_at_str = user_data["created_at"]
+        updated_at_str = user_data["updated_at"]
+        
+        # Parse datetime strings more robustly
+        created_at = parser.parse(created_at_str)
+        updated_at = parser.parse(updated_at_str)
+        
         return UserResponse(
             id=user_data["id"],
             email=user_data["email"],
@@ -65,8 +76,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             community_id=user_data.get("community_id"),
             apartment_number=user_data.get("apartment_number"),
             is_active=user_data["is_active"],
-            created_at=datetime.fromisoformat(user_data["created_at"].replace("Z", "+00:00")),
-            updated_at=datetime.fromisoformat(user_data["updated_at"].replace("Z", "+00:00"))
+            created_at=created_at,
+            updated_at=updated_at
         )
     except Exception as e:
         raise credentials_exception

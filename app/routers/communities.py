@@ -56,6 +56,59 @@ async def get_communities(
         print(f"Error fetching communities: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch communities")
 
+@router.get("/stats", response_model=List[CommunityStats])
+async def get_community_stats(
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Get community statistics"""
+    supabase = get_supabase_client()
+    
+    try:
+        # Get all communities
+        communities_response = supabase.table("communities").select("*").eq("is_active", True).execute()
+        
+        stats = []
+        for community in communities_response.data:
+            community_id = community["id"]
+            
+            # Get vendor count
+            vendors_response = supabase.table("vendors").select("id").eq("community_id", community_id).eq("is_active", True).execute()
+            vendor_count = len(vendors_response.data)
+            
+            # Get user count
+            users_response = supabase.table("users").select("id").eq("community_id", community_id).eq("is_active", True).execute()
+            user_count = len(users_response.data)
+            
+            # Get order count and revenue from vendors in this community
+            order_count = 0
+            revenue = 0
+            
+            if vendors_response.data:
+                vendor_ids = [v["id"] for v in vendors_response.data]
+                for vendor_id in vendor_ids:
+                    orders_response = supabase.table("orders").select("*").eq("vendor_id", vendor_id).execute()
+                    order_count += len(orders_response.data)
+                    
+                    for order in orders_response.data:
+                        if order.get("status") == "completed":
+                            revenue += order.get("total_amount", 0)
+            
+            stats.append({
+                "communityId": str(community_id),
+                "communityName": community["name"],
+                "vendorCount": vendor_count,
+                "userCount": user_count,
+                "orderCount": order_count,
+                "revenue": float(revenue)
+            })
+        
+        # Sort by revenue descending
+        stats.sort(key=lambda x: x["revenue"], reverse=True)
+        return stats
+    except Exception as e:
+        print(f"Error fetching community stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch community statistics")
+
 @router.get("/{community_id}")
 async def get_community(
     community_id: str,
@@ -231,59 +284,6 @@ async def delete_community(
     except Exception as e:
         print(f"Error deleting community: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete community")
-
-@router.get("/stats", response_model=List[CommunityStats])
-async def get_community_stats(
-    current_user: UserResponse = Depends(get_current_user)
-):
-    """Get community statistics"""
-    supabase = get_supabase_client()
-    
-    try:
-        # Get all communities
-        communities_response = supabase.table("communities").select("*").eq("is_active", True).execute()
-        
-        stats = []
-        for community in communities_response.data:
-            community_id = community["id"]
-            
-            # Get vendor count
-            vendors_response = supabase.table("vendors").select("id").eq("community_id", community_id).eq("is_active", True).execute()
-            vendor_count = len(vendors_response.data)
-            
-            # Get user count
-            users_response = supabase.table("users").select("id").eq("community_id", community_id).eq("is_active", True).execute()
-            user_count = len(users_response.data)
-            
-            # Get order count and revenue from vendors in this community
-            order_count = 0
-            revenue = 0
-            
-            if vendors_response.data:
-                vendor_ids = [v["id"] for v in vendors_response.data]
-                for vendor_id in vendor_ids:
-                    orders_response = supabase.table("orders").select("*").eq("vendor_id", vendor_id).execute()
-                    order_count += len(orders_response.data)
-                    
-                    for order in orders_response.data:
-                        if order.get("status") == "completed":
-                            revenue += order.get("total_amount", 0)
-            
-            stats.append({
-                "communityId": str(community_id),
-                "communityName": community["name"],
-                "vendorCount": vendor_count,
-                "userCount": user_count,
-                "orderCount": order_count,
-                "revenue": float(revenue)
-            })
-        
-        # Sort by revenue descending
-        stats.sort(key=lambda x: x["revenue"], reverse=True)
-        return stats
-    except Exception as e:
-        print(f"Error fetching community stats: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch community statistics")
 
 @router.get("/search")
 async def search_communities(
