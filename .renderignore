@@ -1,0 +1,4 @@
+# Tell Render to ignore Django auto-detection files
+manage.py
+*/settings.py
+*/wsgi.py

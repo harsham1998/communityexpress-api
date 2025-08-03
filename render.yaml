@@ -4,8 +4,8 @@ services:
     env: python
     plan: free
     region: oregon
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app.main:app -c gunicorn.conf.py
+    buildCommand: ./build.sh
+    startCommand: ./start.sh
     envVars:
       - key: SUPABASE_URL
         value: https://gdmfonqvadznfijudeuc.supabase.co
