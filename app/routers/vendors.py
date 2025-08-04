@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
 from app.models import VendorCreate, VendorResponse, UserResponse
-from app.auth import get_current_user, require_role
+from app.auth import get_current_user, require_role, get_password_hash
 from app.database import get_supabase_client
 
 router = APIRouter(prefix="/vendors", tags=["vendors"])
@@ -13,24 +13,84 @@ async def create_vendor(
 ):
     supabase = get_supabase_client()
     
-    vendor_data = {
-        "name": vendor.name,
-        "type": vendor.type.value,
-        "community_id": vendor.community_id,
-        "admin_id": vendor.admin_id,
-        "description": vendor.description,
-        "operating_hours": vendor.operating_hours
-    }
-    
     try:
+        # First, create a user account for the vendor with default credentials
+        vendor_email = f"{vendor.name.lower().replace(' ', '_')}@vendor.test"
+        hashed_password = get_password_hash("test")
+        
+        # Check if email already exists
+        existing_user = supabase.table("users").select("*").eq("email", vendor_email).execute()
+        if existing_user.data:
+            # Generate a unique email by appending vendor type
+            vendor_email = f"{vendor.name.lower().replace(' ', '_')}_{vendor.type.value}@vendor.test"
+            existing_user = supabase.table("users").select("*").eq("email", vendor_email).execute()
+            if existing_user.data:
+                # Add timestamp to make it unique
+                import time
+                vendor_email = f"{vendor.name.lower().replace(' ', '_')}_{int(time.time())}@vendor.test"
+        
+        # Create user account for vendor
+        user_data = {
+            "email": vendor_email,
+            "password_hash": hashed_password,
+            "first_name": vendor.name.split()[0],
+            "last_name": vendor.name.split()[-1] if len(vendor.name.split()) > 1 else "Vendor",
+            "role": "vendor",
+            "community_id": vendor.community_id,
+            "is_active": True
+        }
+        
+        user_response = supabase.table("users").insert(user_data).execute()
+        if not user_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to create vendor user account"
+            )
+        
+        created_user = user_response.data[0]
+        
+        # Now create the vendor record
+        vendor_data = {
+            "name": vendor.name,
+            "type": vendor.type.value,
+            "community_id": vendor.community_id,
+            "admin_id": vendor.admin_id,
+            "description": vendor.description,
+            "operating_hours": vendor.operating_hours,
+            "user_id": created_user["id"],  # Link to the created user
+            "email": vendor_email,
+            "phone": f"+91-{vendor.name.replace(' ', '')[:8]}12345"  # Dummy phone
+        }
+        
         response = supabase.table("vendors").insert(vendor_data).execute()
         if not response.data:
+            # If vendor creation fails, clean up the user account
+            supabase.table("users").delete().eq("id", created_user["id"]).execute()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Failed to create vendor"
             )
         
         created_vendor = response.data[0]
+        
+        # If vendor type is laundry, create a laundry vendor profile
+        if vendor.type.value == "laundry":
+            laundry_vendor_data = {
+                "vendor_id": created_vendor["id"],
+                "business_name": vendor.name,
+                "description": vendor.description or f"Professional laundry services by {vendor.name}",
+                "pickup_time_start": "08:00:00",
+                "pickup_time_end": "18:00:00",
+                "delivery_time_hours": 24,
+                "minimum_order_amount": 100.00,
+                "pickup_charge": 20.00,
+                "delivery_charge": 30.00,
+                "service_areas": []
+            }
+            
+            supabase.table("laundry_vendors").insert(laundry_vendor_data).execute()
+            # Note: No default items are created - vendors need to add their own items
+        
         return VendorResponse(
             id=created_vendor["id"],
             name=created_vendor["name"],
