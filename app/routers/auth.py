@@ -1,11 +1,19 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from datetime import timedelta
+from pydantic import BaseModel
 from app.models import UserCreate, UserResponse, LoginRequest, Token
 from app.auth import get_password_hash, verify_password, create_access_token, get_current_user
 from app.database import get_supabase_client
 from app.config import ACCESS_TOKEN_EXPIRE_MINUTES
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
+
+# Request models for user updates
+class UpdateCommunityRequest(BaseModel):
+    community_id: str
+
+class UpdateApartmentRequest(BaseModel):
+    apartment_number: str
 
 @router.post("/register", response_model=UserResponse)
 async def register(user: UserCreate):
@@ -146,4 +154,101 @@ async def join_community(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to join community: {str(e)}"
+        )
+
+@router.put("/me/community", response_model=UserResponse)
+async def update_user_community(
+    request: UpdateCommunityRequest,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Update the current user's community"""
+    supabase = get_supabase_client()
+    
+    # Verify community exists and is active
+    community_response = supabase.table("communities").select("*").eq("id", request.community_id).execute()
+    if not community_response.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Community not found"
+        )
+    
+    community = community_response.data[0]
+    if not community.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Community is not active"
+        )
+    
+    try:
+        # Update user's community
+        update_response = supabase.table("users").update({
+            "community_id": request.community_id
+        }).eq("id", current_user.id).execute()
+        
+        if not update_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to update community"
+            )
+        
+        # Return updated user data
+        updated_user = update_response.data[0]
+        return UserResponse(
+            id=updated_user["id"],
+            email=updated_user["email"],
+            first_name=updated_user["first_name"],
+            last_name=updated_user["last_name"],
+            phone=updated_user.get("phone"),
+            role=updated_user["role"],
+            community_id=updated_user.get("community_id"),
+            apartment_number=updated_user.get("apartment_number"),
+            is_active=updated_user["is_active"],
+            created_at=updated_user["created_at"],
+            updated_at=updated_user["updated_at"]
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to update community: {str(e)}"
+        )
+
+@router.put("/me/apartment", response_model=UserResponse)
+async def update_user_apartment(
+    request: UpdateApartmentRequest,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Update the current user's apartment number"""
+    supabase = get_supabase_client()
+    
+    try:
+        # Update user's apartment number
+        update_response = supabase.table("users").update({
+            "apartment_number": request.apartment_number
+        }).eq("id", current_user.id).execute()
+        
+        if not update_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to update apartment number"
+            )
+        
+        # Return updated user data
+        updated_user = update_response.data[0]
+        return UserResponse(
+            id=updated_user["id"],
+            email=updated_user["email"],
+            first_name=updated_user["first_name"],
+            last_name=updated_user["last_name"],
+            phone=updated_user.get("phone"),
+            role=updated_user["role"],
+            community_id=updated_user.get("community_id"),
+            apartment_number=updated_user.get("apartment_number"),
+            is_active=updated_user["is_active"],
+            created_at=updated_user["created_at"],
+            updated_at=updated_user["updated_at"]
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to update apartment number: {str(e)}"
         )
