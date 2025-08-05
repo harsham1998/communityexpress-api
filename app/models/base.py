@@ -69,7 +69,7 @@ class VendorCreate(BaseModel):
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
     address: Optional[str] = None
-    operating_hours: Optional[str] = None
+    operating_hours: Optional[Dict[str, str]] = None
 
 class VendorResponse(BaseModel):
     id: str
@@ -78,10 +78,11 @@ class VendorResponse(BaseModel):
     description: Optional[str] = None
     community_id: str
     community_name: Optional[str] = None
+    admin_id: Optional[str] = None
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
     address: Optional[str] = None
-    operating_hours: Optional[str] = None
+    operating_hours: Optional[Dict[str, str]] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
