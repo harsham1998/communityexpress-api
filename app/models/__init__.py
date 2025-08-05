@@ -1,3 +1,3 @@
-# Import all models from the main models file and laundry models
-from ..models import *
+# Import all models from base models and laundry models
+from .base import *
 from .laundry import *
