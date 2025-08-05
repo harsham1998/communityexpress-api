@@ -17,9 +17,10 @@ router = APIRouter(prefix="/laundry", tags=["laundry"])
 
 # Laundry Vendor Management Endpoints
 
-def get_current_user_or_testing(
+async def get_current_user_or_testing(
     request: Request,
-    x_testing: Optional[str] = Header(None)
+    x_testing: Optional[str] = Header(None),
+    user: UserResponse = Depends(get_current_user)
 ):
     """Get current user or allow testing mode only for localhost"""
     from dateutil import parser
@@ -42,11 +43,8 @@ def get_current_user_or_testing(
             updated_at=parser.parse("2024-01-01T00:00:00Z")
         )
     
-    # For non-localhost or without testing header, require authentication
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Not authenticated"
-    )
+    # For production requests, return the authenticated user
+    return user
 
 @router.post("/vendors", response_model=LaundryVendorResponse)
 async def create_laundry_vendor(
