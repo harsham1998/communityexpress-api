@@ -7,7 +7,7 @@ from app.models.laundry import (
     LaundryItemCreate, LaundryItemUpdate, LaundryItemResponse,
     LaundryOrderCreate, LaundryOrderUpdate, LaundryOrderResponse,
     LaundryPaymentRequest, LaundryPaymentResponse,
-    LaundryVendorDashboard, LaundryUserStats
+    LaundryVendorDashboard, LaundryVendorStats, LaundryUserStats
 )
 from app.models import UserResponse
 from app.auth import get_current_user
@@ -19,17 +19,17 @@ router = APIRouter(prefix="/laundry", tags=["laundry"])
 
 def get_current_user_or_testing(
     request: Request,
-    x_testing: Optional[str] = Header(None),
-    current_user: Optional[UserResponse] = Depends(get_current_user)
+    x_testing: Optional[str] = Header(None)
 ):
     """Get current user or allow testing mode only for localhost"""
+    from dateutil import parser
+    
     # Check if request is from localhost and testing header is present
     host = request.client.host if request.client else ""
     is_localhost = host in ["127.0.0.1", "localhost", "::1"]
     
     if is_localhost and x_testing == "true":
         # Return a mock user for testing (only in localhost)
-        from app.models import UserResponse
         return UserResponse(
             id="test-user-id",
             email="test@testing.com",
@@ -38,18 +38,15 @@ def get_current_user_or_testing(
             role="master",
             community_id="test-community-id",
             is_active=True,
-            created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            created_at=parser.parse("2024-01-01T00:00:00Z"),
+            updated_at=parser.parse("2024-01-01T00:00:00Z")
         )
     
-    # For non-localhost or without testing header, use normal authentication
-    if current_user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required"
-        )
-    
-    return current_user
+    # For non-localhost or without testing header, require authentication
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated"
+    )
 
 @router.post("/vendors", response_model=LaundryVendorResponse)
 async def create_laundry_vendor(
@@ -107,22 +104,22 @@ async def get_laundry_vendors(
     supabase = get_supabase_client()
     
     try:
-        query = supabase.table("laundry_vendors").select("""
-            *,
-            vendors!inner(
-                id,
-                business_name,
-                phone,
-                email,
-                community_id,
-                is_active
-            )
-        """)
-        
-        if community_id:
-            query = query.eq("vendors.community_id", community_id)
-        elif current_user.community_id and current_user.role == "user":
-            query = query.eq("vendors.community_id", current_user.community_id)
+        if community_id or (current_user.community_id and current_user.role == "user"):
+            # If we need to filter by community, we need to join with vendors table
+            query = supabase.table("laundry_vendors").select("""
+                *,
+                vendors!inner(
+                    community_id
+                )
+            """)
+            
+            if community_id:
+                query = query.eq("vendors.community_id", community_id)
+            elif current_user.community_id and current_user.role == "user":
+                query = query.eq("vendors.community_id", current_user.community_id)
+        else:
+            # If no community filter needed, just get laundry_vendors
+            query = supabase.table("laundry_vendors").select("*")
             
         if is_active is not None:
             query = query.eq("is_active", is_active)
@@ -806,7 +803,7 @@ async def get_vendor_dashboard(
                 "user_phone": order["users"]["phone"]
             })
         
-        return LaundryVendorDashboard(
+        stats = LaundryVendorStats(
             total_orders=total_orders,
             pending_orders=pending_orders,
             confirmed_orders=confirmed_orders,
@@ -814,9 +811,13 @@ async def get_vendor_dashboard(
             ready_orders=ready_orders,
             delivered_orders=delivered_orders,
             cancelled_orders=cancelled_orders,
-            today_revenue=today_revenue,
-            monthly_revenue=monthly_revenue,
-            active_items=active_items,
+            today_revenue=float(today_revenue),
+            monthly_revenue=float(monthly_revenue),
+            active_items=active_items
+        )
+        
+        return LaundryVendorDashboard(
+            stats=stats,
             recent_orders=[LaundryOrderResponse(**order) for order in recent_orders]
         )
         
