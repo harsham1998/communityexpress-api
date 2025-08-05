@@ -22,7 +22,7 @@ async def create_vendor(
         existing_user = supabase.table("users").select("*").eq("email", vendor_email).execute()
         if existing_user.data:
             # Generate a unique email by appending vendor type
-            vendor_email = f"{vendor.name.lower().replace(' ', '_')}_{vendor.type.value}@vendor.test"
+            vendor_email = f"{vendor.name.lower().replace(' ', '_')}_{vendor.type}@vendor.test"
             existing_user = supabase.table("users").select("*").eq("email", vendor_email).execute()
             if existing_user.data:
                 # Add timestamp to make it unique
@@ -52,7 +52,7 @@ async def create_vendor(
         # Now create the vendor record
         vendor_data = {
             "name": vendor.name,
-            "type": vendor.type.value,
+            "type": vendor.type,
             "community_id": vendor.community_id,
             "admin_id": vendor.admin_id,
             "description": vendor.description,
@@ -74,7 +74,7 @@ async def create_vendor(
         created_vendor = response.data[0]
         
         # If vendor type is laundry, create a laundry vendor profile
-        if vendor.type.value == "laundry":
+        if vendor.type == "laundry":
             laundry_vendor_data = {
                 "vendor_id": created_vendor["id"],
                 "business_name": vendor.name,
@@ -289,7 +289,7 @@ async def update_vendor(
     
     vendor_data = {
         "name": vendor.name,
-        "type": vendor.type.value,
+        "type": vendor.type,
         "description": vendor.description,
         "operating_hours": vendor.operating_hours
     }
