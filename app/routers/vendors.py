@@ -82,12 +82,12 @@ async def create_vendor(
         
         created_user = user_response.data[0]
         
-        # Now create the vendor record
+        # Now create the vendor record with the created user as admin
         vendor_data = {
             "name": vendor.name,
             "type": vendor.type,
             "community_id": vendor.community_id,
-            "admin_id": vendor.admin_id,
+            "admin_id": created_user["id"],  # Link vendor to the auto-created user
             "description": vendor.description,
             "operating_hours": vendor.operating_hours
         }

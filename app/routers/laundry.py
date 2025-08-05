@@ -176,8 +176,8 @@ async def update_laundry_vendor(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
         
         # Check if the vendor belongs to current user
-        user_vendor_check = supabase.table("vendors").select("user_id").eq("id", vendor_check.data[0]["vendor_id"]).execute()
-        if not user_vendor_check.data or user_vendor_check.data[0]["user_id"] != current_user.id:
+        user_vendor_check = supabase.table("vendors").select("admin_id").eq("id", vendor_check.data[0]["vendor_id"]).execute()
+        if not user_vendor_check.data or user_vendor_check.data[0]["admin_id"] != current_user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
     try:
@@ -225,8 +225,8 @@ async def create_laundry_item(
         if not vendor_check.data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
         
-        user_vendor_check = supabase.table("vendors").select("user_id").eq("id", vendor_check.data[0]["vendor_id"]).execute()
-        if not user_vendor_check.data or user_vendor_check.data[0]["user_id"] != current_user.id:
+        user_vendor_check = supabase.table("vendors").select("admin_id").eq("id", vendor_check.data[0]["vendor_id"]).execute()
+        if not user_vendor_check.data or user_vendor_check.data[0]["admin_id"] != current_user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
     try:
@@ -302,8 +302,8 @@ async def update_laundry_item(
         if not vendor_check.data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
         
-        user_vendor_check = supabase.table("vendors").select("user_id").eq("id", vendor_check.data[0]["vendor_id"]).execute()
-        if not user_vendor_check.data or user_vendor_check.data[0]["user_id"] != current_user.id:
+        user_vendor_check = supabase.table("vendors").select("admin_id").eq("id", vendor_check.data[0]["vendor_id"]).execute()
+        if not user_vendor_check.data or user_vendor_check.data[0]["admin_id"] != current_user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
     try:
@@ -347,8 +347,8 @@ async def delete_laundry_item(
         if not vendor_check.data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
         
-        user_vendor_check = supabase.table("vendors").select("user_id").eq("id", vendor_check.data[0]["vendor_id"]).execute()
-        if not user_vendor_check.data or user_vendor_check.data[0]["user_id"] != current_user.id:
+        user_vendor_check = supabase.table("vendors").select("admin_id").eq("id", vendor_check.data[0]["vendor_id"]).execute()
+        if not user_vendor_check.data or user_vendor_check.data[0]["admin_id"] != current_user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
     try:
@@ -752,8 +752,8 @@ async def get_vendor_dashboard(
         if not vendor_check.data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
         
-        user_vendor_check = supabase.table("vendors").select("user_id").eq("id", vendor_check.data[0]["vendor_id"]).execute()
-        if not user_vendor_check.data or user_vendor_check.data[0]["user_id"] != current_user.id:
+        user_vendor_check = supabase.table("vendors").select("admin_id").eq("id", vendor_check.data[0]["vendor_id"]).execute()
+        if not user_vendor_check.data or user_vendor_check.data[0]["admin_id"] != current_user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
     try:
