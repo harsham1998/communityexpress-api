@@ -66,6 +66,7 @@ class VendorCreate(BaseModel):
     type: str
     description: Optional[str] = None
     community_id: str
+    admin_id: Optional[str] = None
     contact_email: Optional[str] = None
     contact_phone: Optional[str] = None
     address: Optional[str] = None
