@@ -47,20 +47,17 @@ async def create_vendor(
     supabase = get_supabase_client()
     
     try:
-        # First, create a user account for the vendor with default credentials
-        vendor_email = f"{vendor.name.lower().replace(' ', '_')}@vendor.example.com"
+        # Use the provided contact_email for vendor login account
+        vendor_email = vendor.contact_email
         hashed_password = get_password_hash("test")
         
         # Check if email already exists
         existing_user = supabase.table("users").select("*").eq("email", vendor_email).execute()
         if existing_user.data:
-            # Generate a unique email by appending vendor type
-            vendor_email = f"{vendor.name.lower().replace(' ', '_')}_{vendor.type}@vendor.example.com"
-            existing_user = supabase.table("users").select("*").eq("email", vendor_email).execute()
-            if existing_user.data:
-                # Add timestamp to make it unique
-                import time
-                vendor_email = f"{vendor.name.lower().replace(' ', '_')}_{int(time.time())}@vendor.example.com"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"A user with email {vendor_email} already exists"
+            )
         
         # Create user account for vendor
         user_data = {
@@ -88,6 +85,9 @@ async def create_vendor(
             "type": vendor.type,
             "community_id": vendor.community_id,
             "admin_id": created_user["id"],  # Link vendor to the auto-created user
+            "contact_email": vendor_email,  # Store the email used for login
+            "contact_phone": vendor.contact_phone,
+            "address": vendor.address,
             "description": vendor.description,
             "operating_hours": vendor.operating_hours
         }

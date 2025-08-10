@@ -67,7 +67,7 @@ class VendorCreate(BaseModel):
     description: Optional[str] = None
     community_id: str
     admin_id: Optional[str] = None
-    contact_email: Optional[str] = None
+    contact_email: str  # Required for vendor login account
     contact_phone: Optional[str] = None
     address: Optional[str] = None
     operating_hours: Optional[Dict[str, str]] = None
